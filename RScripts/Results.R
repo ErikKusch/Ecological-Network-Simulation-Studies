@@ -129,7 +129,7 @@ Accuracy_df <- do.call(rbind, pblapply(Inference_ls[-1], FUN = function(Sim) {
     Approach = methods_vec
   )
 }))
-
+Accuracy_df$SimIter <- rep(1:(length(Inference_ls) - 1), each = length(cases))
 
 OS_gg <- ggplot(
   Accuracy_df,
@@ -143,6 +143,73 @@ OS_gg <- ggplot(
   labs(y = "", x = "Inference Accuracy [%]")
 OS_gg
 ggsave(OS_gg, filename = file.path(Dir.Exports, paste0(RunName, "Fig_OS.png")), width = 16, height = 12, units = "cm")
+
+
+PairwiseCompare <- combn(cases, 2, simplify = FALSE)
+PairedPvals_df <- do.call(rbind, lapply(seq_along(PairwiseCompare), FUN = function(i) {
+  pair_i <- PairwiseCompare[[i]]
+
+  x_df <- Accuracy_df[Accuracy_df$Approach == pair_i[1], c("SimIter", "Accuracy")]
+  y_df <- Accuracy_df[Accuracy_df$Approach == pair_i[2], c("SimIter", "Accuracy")]
+  paired_df <- merge(x_df, y_df, by = "SimIter", suffixes = c(".x", ".y"))
+
+  tt <- t.test(paired_df$Accuracy.x, paired_df$Accuracy.y, paired = TRUE)
+  data.frame(group1 = pair_i[1], group2 = pair_i[2], p = tt$p.value)
+}))
+
+PairedPvals_df$p.signif <- symnum(
+  PairedPvals_df$p,
+  corr = FALSE,
+  na = FALSE,
+  cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1),
+  symbols = c("****", "***", "**", "*", "ns")
+)
+PairedPvals_df$p.signif <- as.character(PairedPvals_df$p.signif)
+PairedPvals_df$y.position <- seq(
+  from = max(1, 20 - (nrow(PairedPvals_df) - 1) * 5),
+  to = 20,
+  length.out = nrow(PairedPvals_df)
+)
+PairedPvals_df$xmin <- match(PairedPvals_df$group1, cases)
+PairedPvals_df$xmax <- match(PairedPvals_df$group2, cases)
+PairedPvals_plot_df <- PairedPvals_df[PairedPvals_df$p.signif != "ns", ]
+BracketHeight <- 1.2
+
+
+PairedOS_gg <- ggplot(
+  Accuracy_df,
+  aes(x = factor(Approach, levels = cases), y = Accuracy)
+) +
+  geom_violin() +
+  geom_boxplot(width = 0.1) +
+  # geom_hline(yintercept = 100, linetype = "dashed") +
+  geom_segment(
+    data = PairedPvals_plot_df,
+    aes(x = xmin, xend = xmax, y = y.position, yend = y.position),
+    inherit.aes = FALSE
+  ) +
+  geom_segment(
+    data = PairedPvals_plot_df,
+    aes(x = xmin, xend = xmin, y = y.position, yend = y.position + BracketHeight),
+    inherit.aes = FALSE
+  ) +
+  geom_segment(
+    data = PairedPvals_plot_df,
+    aes(x = xmax, xend = xmax, y = y.position, yend = y.position + BracketHeight),
+    inherit.aes = FALSE
+  ) +
+  geom_text(
+    data = PairedPvals_plot_df,
+    aes(x = (xmin + xmax) / 2, y = y.position - 0.6, label = p.signif),
+    inherit.aes = FALSE,
+    vjust = 1
+  ) +
+  theme_bw() +
+  lims(y = c(0, 100)) +
+  # scale_y_continuous(limits = c(0, 100), breaks = seq(from = 0, to = 100, by = 10)) +
+  labs(x = "Inference Approach", y = "Inference Accuracy [%]")
+
+ggsave(PairedOS_gg, filename = file.path(Dir.Exports, paste0(RunName, "Fig_PairedOS.png")), width = 16, height = 12, units = "cm")
 
 
 # WithinCompare <- list(c("[O]", "[O]Clim"),
