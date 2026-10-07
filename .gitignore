@@ -49,14 +49,12 @@ desktop.ini
 lock
 *.docx
 
-/Concept/*
-!/Concept/
-!/Concept/*DEMO*.RData
+*/Concept/*
+*/Data/*
+*/Models/*
+*/Expots/*
+Old Scripts/*
 
-/Data/*
-!/Data/
-!/Data/*DEMO*.RData
-
-/Models/*
-!/Models/
-!/Models/*DEMO*.RData
+!Demo of NetDemoSims Capabilities/*
+Case - Network Inference Validation/Data/*
+Case - Network Inference Validation/Models/*
